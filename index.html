@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Festive Light Failure - Simulation</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes glow {
+            0%, 100% { filter: drop-shadow(0 0 5px rgba(255, 255, 0, 0.8)); }
+            50% { filter: drop-shadow(0 0 15px rgba(255, 255, 0, 1)); }
+        }
+        .bulb-on {
+            animation: glow 1.5s infinite alternate;
+            fill: #fde047;
+        }
+        .bulb-off {
+            fill: #4b5563;
+        }
+        .wire {
+            stroke: #374151;
+            stroke-width: 4;
+            fill: none;
+            transition: stroke 0.3s;
+        }
+        .wire-active {
+            stroke: #fbbf24;
+        }
+        .current-particle {
+            fill: #f59e0b;
+        }
+        .btn-active {
+            background-color: #2563eb;
+            color: white;
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col font-sans">
+
+    <!-- Header -->
+    <header class="p-6 bg-slate-800 border-b border-slate-700 shadow-lg">
+        <h1 class="text-3xl font-bold text-center text-yellow-400">The Festive Light Failure</h1>
+        <p class="text-center text-slate-400 mt-2">Explore why one broken bulb can ruin the whole holiday!</p>
+    </header>
+
+    <!-- Main Simulator Area -->
+    <main class="flex-grow flex flex-col items-center justify-center p-4">
+        
+        <div class="w-full max-w-4xl bg-slate-800 rounded-2xl shadow-2xl p-6 border border-slate-700">
+            
+            <!-- Controls -->
+            <div class="flex flex-wrap gap-4 justify-center mb-8">
+                <div class="flex bg-slate-700 p-1 rounded-lg">
+                    <button id="seriesBtn" class="px-6 py-2 rounded-md font-semibold transition btn-active">Series Circuit</button>
+                    <button id="parallelBtn" class="px-6 py-2 rounded-md font-semibold transition text-slate-300 hover:text-white">Parallel Circuit</button>
+                </div>
+                <button id="resetBtn" class="px-6 py-2 bg-red-600 hover:bg-red-500 rounded-md font-semibold transition">Reset All Bulbs</button>
+            </div>
+
+            <!-- Simulation Canvas -->
+            <div class="relative bg-slate-950 rounded-xl border-4 border-slate-800 h-[400px] overflow-hidden">
+                <svg id="circuitSvg" viewBox="0 0 800 400" class="w-full h-full">
+                    <!-- Circuit Wires will be rendered here -->
+                    <g id="wiresLayer"></g>
+                    <!-- Flow Particles -->
+                    <g id="particlesLayer"></g>
+                    <!-- Bulbs will be rendered here -->
+                    <g id="bulbsLayer"></g>
+                </svg>
+
+                <!-- Tooltip Overlay -->
+                <div id="statusOverlay" class="absolute top-4 left-4 bg-slate-900/80 p-3 rounded-lg border border-yellow-500/50 backdrop-blur-sm">
+                    <p id="circuitStatus" class="font-mono text-sm">Status: <span class="text-green-400">Complete Circuit</span></p>
+                    <p id="bulbCount" class="font-mono text-sm text-slate-400">Bulbs active: 5/5</p>
+                </div>
+
+                <!-- Explanation Box (Lower Right) -->
+                <div class="absolute bottom-4 right-4 max-w-xs bg-slate-900/90 p-4 rounded-lg border border-slate-700 shadow-xl hidden md:block">
+                    <h3 class="text-yellow-400 font-bold mb-1" id="expTitle">Series Circuit</h3>
+                    <p class="text-xs text-slate-300 leading-relaxed" id="expText">
+                        In a series circuit, there is only one path for the electricity. If any bulb is removed, the path is broken, and no electricity can flow to any other bulb.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Interaction Prompt -->
+            <div class="mt-6 text-center">
+                <p class="text-lg text-yellow-200 animate-pulse">Click a bulb to "unscrew" it!</p>
+            </div>
+        </div>
+
+        <!-- Educational Sidebar -->
+        <section class="mt-12 max-w-4xl w-full grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
+            <div class="bg-slate-800 p-6 rounded-xl border border-slate-700">
+                <h2 class="text-xl font-bold text-yellow-400 mb-3">What's Happening?</h2>
+                <p class="text-slate-300">
+                    The "Festive Light Failure" occurs because many cheap light strings are wired in <strong>series</strong>. This means electrons must pass through every single filament to return to the source. If one filament snaps or a bulb is removed, the <strong>continuity</strong> is lost.
+                </p>
+            </div>
+            <div class="bg-slate-800 p-6 rounded-xl border border-slate-700">
+                <h2 class="text-xl font-bold text-yellow-400 mb-3">The Modern Fix</h2>
+                <p class="text-slate-300">
+                    Most modern festive lights use <strong>parallel</strong> wiring or special bulbs with a "shunt." In a parallel circuit, each bulb has its own direct path to the power source, ensuring the rest of the house stays bright!
+                </p>
+            </div>
+        </section>
+    </main>
+
+    <footer class="p-4 text-center text-slate-500 text-sm">
+        Interactive Physics Simulation &bull; Series vs Parallel Continuity
+    </footer>
+
+    <script>
+        const wiresLayer = document.getElementById('wiresLayer');
+        const bulbsLayer = document.getElementById('bulbsLayer');
+        const particlesLayer = document.getElementById('particlesLayer');
+        const circuitStatus = document.getElementById('circuitStatus');
+        const bulbCountText = document.getElementById('bulbCount');
+        const expTitle = document.getElementById('expTitle');
+        const expText = document.getElementById('expText');
+        
+        let circuitType = 'series'; // 'series' or 'parallel'
+        let bulbs = [true, true, true, true, true]; // true = installed, false = removed
+        let particles = [];
+        
+        const bulbPositions = [
+            {x: 150, y: 200},
+            {x: 275, y: 200},
+            {x: 400, y: 200},
+            {x: 525, y: 200},
+            {x: 650, y: 200}
+        ];
+
+        function init() {
+            render();
+            requestAnimationFrame(animateParticles);
+            
+            document.getElementById('seriesBtn').onclick = () => setCircuit('series');
+            document.getElementById('parallelBtn').onclick = () => setCircuit('parallel');
+            document.getElementById('resetBtn').onclick = resetBulbs;
+        }
+
+        function setCircuit(type) {
+            circuitType = type;
+            document.getElementById('seriesBtn').classList.toggle('btn-active', type === 'series');
+            document.getElementById('seriesBtn').classList.toggle('text-slate-300', type !== 'series');
+            document.getElementById('parallelBtn').classList.toggle('btn-active', type === 'parallel');
+            document.getElementById('parallelBtn').classList.toggle('text-slate-300', type !== 'parallel');
+            
+            if(type === 'series') {
+                expTitle.innerText = "Series Circuit";
+                expText.innerText = "In a series circuit, there is only one path for the electricity. If any bulb is removed, the path is broken, and no electricity can flow to any other bulb.";
+            } else {
+                expTitle.innerText = "Parallel Circuit";
+                expText.innerText = "In a parallel circuit, each bulb has its own independent branch. Removing one bulb only breaks that specific branch; the others remain powered.";
+            }
+            
+            render();
+        }
+
+        function resetBulbs() {
+            bulbs = bulbs.map(() => true);
+            render();
+        }
+
+        function toggleBulb(index) {
+            bulbs[index] = !bulbs[index];
+            render();
+        }
+
+        function checkContinuity() {
+            if (circuitType === 'series') {
+                // In series, ALL must be true for ANY to light up
+                const allIn = bulbs.every(b => b === true);
+                return bulbs.map(() => allIn);
+            } else {
+                // In parallel, each works independently
+                return bulbs.map(b => b === true);
+            }
+        }
+
+        function render() {
+            const continuity = checkContinuity();
+            const anyPower = continuity.some(c => c === true);
+            
+            // Update UI Text
+            const activeCount = bulbs.filter(b => b).length;
+            bulbCountText.innerText = `Bulbs installed: ${activeCount}/5`;
+            
+            if (circuitType === 'series') {
+                const allIn = bulbs.every(b => b === true);
+                circuitStatus.innerHTML = allIn ? 'Status: <span class="text-green-400">Complete Path</span>' : 'Status: <span class="text-red-400">Open Circuit (Broken)</span>';
+            } else {
+                circuitStatus.innerHTML = 'Status: <span class="text-blue-400">Parallel Network</span>';
+            }
+
+            // Clear layers
+            wiresLayer.innerHTML = '';
+            bulbsLayer.innerHTML = '';
+
+            // Draw Battery/Power Source (Simple rectangle)
+            wiresLayer.innerHTML += `
+                <rect x="20" y="180" width="40" height="40" rx="4" fill="#334155" />
+                <text x="40" y="205" fill="white" font-size="12" text-anchor="middle" font-weight="bold">AC</text>
+            `;
+
+            // Render Wires and Bulbs
+            if (circuitType === 'series') {
+                drawSeries(continuity);
+            } else {
+                drawParallel(continuity);
+            }
+        }
+
+        function drawSeries(continuity) {
+            const isActive = continuity[0]; 
+            
+            // Main Path
+            let d = `M 60 200 L 150 200`;
+            for(let i=0; i < bulbPositions.length -1; i++) {
+                d += ` M ${bulbPositions[i].x} 200 L ${bulbPositions[i+1].x} 200`;
+            }
+            d += ` M ${bulbPositions[4].x} 200 L 750 200 L 750 350 L 40 350 L 40 220`;
+
+            wiresLayer.innerHTML += `<path d="${d}" class="wire ${isActive ? 'wire-active' : ''}" stroke-dasharray="0" />`;
+
+            bulbPositions.forEach((pos, i) => {
+                const isLit = continuity[i];
+                const isPresent = bulbs[i];
+                drawBulbIcon(pos.x, pos.y, isLit, isPresent, i);
+            });
+        }
+
+        function drawParallel(continuity) {
+            // Main rails
+            const topRail = `M 60 150 L 700 150`;
+            const botRail = `M 60 250 L 700 250`;
+            const sourceJoin = `M 60 150 L 60 180 M 60 220 L 60 250`;
+
+            wiresLayer.innerHTML += `<path d="${topRail}" class="wire wire-active" />`;
+            wiresLayer.innerHTML += `<path d="${botRail}" class="wire wire-active" />`;
+            wiresLayer.innerHTML += `<path d="${sourceJoin}" class="wire wire-active" />`;
+
+            bulbPositions.forEach((pos, i) => {
+                const isLit = continuity[i];
+                const isPresent = bulbs[i];
+                
+                // Vertical branches
+                const branch = `M ${pos.x} 150 L ${pos.x} 185 M ${pos.x} 215 L ${pos.x} 250`;
+                wiresLayer.innerHTML += `<path d="${branch}" class="wire ${isLit ? 'wire-active' : ''}" />`;
+                
+                drawBulbIcon(pos.x, pos.y, isLit, isPresent, i);
+            });
+        }
+
+        function drawBulbIcon(x, y, isLit, isPresent, index) {
+            if (!isPresent) {
+                // Draw an empty socket
+                bulbsLayer.innerHTML += `
+                    <g cursor="pointer" onclick="toggleBulb(${index})">
+                        <rect x="${x-10}" y="${y-10}" width="20" height="20" fill="#1e293b" stroke="#475569" rx="2" />
+                        <text x="${x}" y="${y+5}" fill="#475569" font-size="10" text-anchor="middle">EMPTY</text>
+                    </g>
+                `;
+                return;
+            }
+
+            const colorClass = isLit ? 'bulb-on' : 'bulb-off';
+            bulbsLayer.innerHTML += `
+                <g cursor="pointer" onclick="toggleBulb(${index})">
+                    <!-- Socket -->
+                    <rect x="${x-8}" y="${y+8}" width="16" height="8" fill="#94a3b8" />
+                    <!-- Glass -->
+                    <path d="M ${x-12} ${y+8} Q ${x-15} ${y-15} ${x} ${y-20} Q ${x+15} ${y-15} ${x+12} ${y+8} Z" 
+                          class="${colorClass} transition-all duration-500" />
+                    <!-- Filament -->
+                    <path d="M ${x-5} ${y+2} L ${x-2} ${y-5} L ${x+2} ${y-5} L ${x+5} ${y+2}" 
+                          fill="none" stroke="${isLit ? '#fff' : '#374151'}" stroke-width="1" />
+                </g>
+            `;
+        }
+
+        // Current Visualization
+        function animateParticles(time) {
+            const continuity = checkContinuity();
+            
+            // Clean old particles
+            particlesLayer.innerHTML = '';
+
+            if (circuitType === 'series') {
+                if (continuity[0]) {
+                    // One loop
+                    updateSeriesParticles(time);
+                }
+            } else {
+                // Multiple paths
+                updateParallelParticles(time);
+            }
+
+            requestAnimationFrame(animateParticles);
+        }
+
+        function updateSeriesParticles(time) {
+            const speed = 0.002;
+            const count = 15;
+            for(let i=0; i<count; i++) {
+                const t = ((time * speed) + (i / count)) % 1;
+                const pos = getSeriesPoint(t);
+                drawParticle(pos.x, pos.y);
+            }
+        }
+
+        function updateParallelParticles(time) {
+            const speed = 0.002;
+            const continuity = checkContinuity();
+            
+            // Main Rails (always have potential if power is on)
+            for(let i=0; i<8; i++) {
+                const t = ((time * speed) + (i / 8)) % 1;
+                drawParticle(60 + t * 640, 150);
+                drawParticle(700 - t * 640, 250);
+            }
+
+            // Branches
+            bulbPositions.forEach((pos, i) => {
+                if(continuity[i]) {
+                    const t = (time * 0.005) % 1;
+                    // Down branch
+                    if (t < 0.5) {
+                        const prog = t * 2;
+                        drawParticle(pos.x, 150 + prog * 35);
+                    } else {
+                        const prog = (t - 0.5) * 2;
+                        drawParticle(pos.x, 215 + prog * 35);
+                    }
+                }
+            });
+        }
+
+        function getSeriesPoint(t) {
+            // Simplified path tracing for particles
+            // 0 to 0.7: along bulbs
+            // 0.7 to 1.0: return path
+            if (t < 0.7) {
+                const seg = t / 0.7;
+                return { x: 60 + seg * 690, y: 200 };
+            } else {
+                const seg = (t - 0.7) / 0.3;
+                if (seg < 0.3) return { x: 750, y: 200 + seg * 500 }; // Down (capped)
+                return { x: 750 - (seg * 710), y: 350 }; // Back
+            }
+        }
+
+        function drawParticle(x, y) {
+            const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+            circle.setAttribute("cx", x);
+            circle.setAttribute("cy", y);
+            circle.setAttribute("r", "2");
+            circle.setAttribute("class", "current-particle");
+            particlesLayer.appendChild(circle);
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
