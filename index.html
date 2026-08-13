@@ -37,13 +37,11 @@
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col font-sans">
 
-    <!-- Header -->
     <header class="p-6 bg-slate-800 border-b border-slate-700 shadow-lg">
         <h1 class="text-3xl font-bold text-center text-yellow-400">The Festive Light Failure</h1>
         <p class="text-center text-slate-400 mt-2">Explore why one broken bulb can ruin the whole holiday!</p>
     </header>
 
-    <!-- Main Simulator Area -->
     <main class="flex-grow flex flex-col items-center justify-center p-4">
         
         <div class="w-full max-w-4xl bg-slate-800 rounded-2xl shadow-2xl p-6 border border-slate-700">
@@ -60,21 +58,21 @@
             <!-- Simulation Canvas -->
             <div class="relative bg-slate-950 rounded-xl border-4 border-slate-800 h-[400px] overflow-hidden">
                 <svg id="circuitSvg" viewBox="0 0 800 400" class="w-full h-full">
-                    <!-- Circuit Wires will be rendered here -->
+                    <!-- Circuit Wires -->
                     <g id="wiresLayer"></g>
                     <!-- Flow Particles -->
                     <g id="particlesLayer"></g>
-                    <!-- Bulbs will be rendered here -->
+                    <!-- Bulbs -->
                     <g id="bulbsLayer"></g>
                 </svg>
 
                 <!-- Tooltip Overlay -->
                 <div id="statusOverlay" class="absolute top-4 left-4 bg-slate-900/80 p-3 rounded-lg border border-yellow-500/50 backdrop-blur-sm">
                     <p id="circuitStatus" class="font-mono text-sm">Status: <span class="text-green-400">Complete Circuit</span></p>
-                    <p id="bulbCount" class="font-mono text-sm text-slate-400">Bulbs active: 5/5</p>
+                    <p id="bulbCount" class="font-mono text-sm text-slate-400">Bulbs installed: 5/5</p>
                 </div>
 
-                <!-- Explanation Box (Lower Right) -->
+                <!-- Explanation Box -->
                 <div class="absolute bottom-4 right-4 max-w-xs bg-slate-900/90 p-4 rounded-lg border border-slate-700 shadow-xl hidden md:block">
                     <h3 class="text-yellow-400 font-bold mb-1" id="expTitle">Series Circuit</h3>
                     <p class="text-xs text-slate-300 leading-relaxed" id="expText">
@@ -89,12 +87,11 @@
             </div>
         </div>
 
-        <!-- Educational Sidebar -->
-        <section class="mt-12 max-w-4xl w-full grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
+        <section class="mt-12 max-w-4xl w-full grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
             <div class="bg-slate-800 p-6 rounded-xl border border-slate-700">
                 <h2 class="text-xl font-bold text-yellow-400 mb-3">What's Happening?</h2>
                 <p class="text-slate-300">
-                    The "Festive Light Failure" occurs because many cheap light strings are wired in <strong>series</strong>. This means electrons must pass through every single filament to return to the source. If one filament snaps or a bulb is removed, the <strong>continuity</strong> is lost.
+                    The "Festive Light Failure" occurs because many simple light strings are wired in <strong>series</strong>. This means electrons must pass through every single filament to return to the source. If one filament snaps or a bulb is removed, the <strong>continuity</strong> is lost.
                 </p>
             </div>
             <div class="bg-slate-800 p-6 rounded-xl border border-slate-700">
@@ -106,10 +103,10 @@
         </section>
     </main>
 
-    <footer class="p-6 text-center text-slate-400 text-sm space-y-1 border-t border-slate-800">
-        <p class="font-semibold text-slate-300">Frontier Primary School</p>
-        <p>Designed and developed by Ganges Lim</p>
-        <p class="text-xs text-slate-500">Version: 13 Aug 2026 (Offline HTML Simulation)</p>
+    <footer class="my-8 mx-auto w-11/12 max-w-2xl p-6 bg-slate-800/90 border-2 border-slate-700 rounded-xl shadow-xl text-center text-slate-400 text-sm space-y-1">
+        <p class="font-semibold text-slate-200 text-base">Frontier Primary School</p>
+        <p class="text-slate-300">Designed and developed by Ganges Lim</p>
+        <p class="text-xs text-slate-500 mt-2">Version: 13 Aug 2026 (Offline HTML Simulation)</p>
     </footer>
 
     <script>
@@ -123,7 +120,6 @@
         
         let circuitType = 'series'; // 'series' or 'parallel'
         let bulbs = [true, true, true, true, true]; // true = installed, false = removed
-        let particles = [];
         
         const bulbPositions = [
             {x: 150, y: 200},
@@ -172,7 +168,7 @@
 
         function checkContinuity() {
             if (circuitType === 'series') {
-                // In series, ALL must be true for ANY to light up
+                // In series, ALL must be installed for ANY to light up
                 const allIn = bulbs.every(b => b === true);
                 return bulbs.map(() => allIn);
             } else {
@@ -183,9 +179,8 @@
 
         function render() {
             const continuity = checkContinuity();
-            const anyPower = continuity.some(c => c === true);
             
-            // Update UI Text
+            // Update UI Status Text
             const activeCount = bulbs.filter(b => b).length;
             bulbCountText.innerText = `Bulbs installed: ${activeCount}/5`;
             
@@ -196,17 +191,16 @@
                 circuitStatus.innerHTML = 'Status: <span class="text-blue-400">Parallel Network</span>';
             }
 
-            // Clear layers
+            // Clear existing SVG layers
             wiresLayer.innerHTML = '';
             bulbsLayer.innerHTML = '';
 
-            // Draw Battery/Power Source (Simple rectangle)
+            // Draw Power Source
             wiresLayer.innerHTML += `
                 <rect x="20" y="180" width="40" height="40" rx="4" fill="#334155" />
                 <text x="40" y="205" fill="white" font-size="12" text-anchor="middle" font-weight="bold">AC</text>
             `;
 
-            // Render Wires and Bulbs
             if (circuitType === 'series') {
                 drawSeries(continuity);
             } else {
@@ -217,14 +211,13 @@
         function drawSeries(continuity) {
             const isActive = continuity[0]; 
             
-            // Main Path
             let d = `M 60 200 L 150 200`;
-            for(let i=0; i < bulbPositions.length -1; i++) {
+            for(let i = 0; i < bulbPositions.length - 1; i++) {
                 d += ` M ${bulbPositions[i].x} 200 L ${bulbPositions[i+1].x} 200`;
             }
             d += ` M ${bulbPositions[4].x} 200 L 750 200 L 750 350 L 40 350 L 40 220`;
 
-            wiresLayer.innerHTML += `<path d="${d}" class="wire ${isActive ? 'wire-active' : ''}" stroke-dasharray="0" />`;
+            wiresLayer.innerHTML += `<path d="${d}" class="wire ${isActive ? 'wire-active' : ''}" />`;
 
             bulbPositions.forEach((pos, i) => {
                 const isLit = continuity[i];
@@ -234,7 +227,6 @@
         }
 
         function drawParallel(continuity) {
-            // Main rails
             const topRail = `M 60 150 L 700 150`;
             const botRail = `M 60 250 L 700 250`;
             const sourceJoin = `M 60 150 L 60 180 M 60 220 L 60 250`;
@@ -247,7 +239,6 @@
                 const isLit = continuity[i];
                 const isPresent = bulbs[i];
                 
-                // Vertical branches
                 const branch = `M ${pos.x} 150 L ${pos.x} 185 M ${pos.x} 215 L ${pos.x} 250`;
                 wiresLayer.innerHTML += `<path d="${branch}" class="wire ${isLit ? 'wire-active' : ''}" />`;
                 
@@ -257,7 +248,6 @@
 
         function drawBulbIcon(x, y, isLit, isPresent, index) {
             if (!isPresent) {
-                // Draw an empty socket
                 bulbsLayer.innerHTML += `
                     <g cursor="pointer" onclick="toggleBulb(${index})">
                         <rect x="${x-10}" y="${y-10}" width="20" height="20" fill="#1e293b" stroke="#475569" rx="2" />
@@ -282,20 +272,15 @@
             `;
         }
 
-        // Current Visualization
         function animateParticles(time) {
             const continuity = checkContinuity();
-            
-            // Clean old particles
             particlesLayer.innerHTML = '';
 
             if (circuitType === 'series') {
                 if (continuity[0]) {
-                    // One loop
                     updateSeriesParticles(time);
                 }
             } else {
-                // Multiple paths
                 updateParallelParticles(time);
             }
 
@@ -305,7 +290,7 @@
         function updateSeriesParticles(time) {
             const speed = 0.002;
             const count = 15;
-            for(let i=0; i<count; i++) {
+            for(let i = 0; i < count; i++) {
                 const t = ((time * speed) + (i / count)) % 1;
                 const pos = getSeriesPoint(t);
                 drawParticle(pos.x, pos.y);
@@ -316,18 +301,15 @@
             const speed = 0.002;
             const continuity = checkContinuity();
             
-            // Main Rails (always have potential if power is on)
-            for(let i=0; i<8; i++) {
+            for(let i = 0; i < 8; i++) {
                 const t = ((time * speed) + (i / 8)) % 1;
                 drawParticle(60 + t * 640, 150);
                 drawParticle(700 - t * 640, 250);
             }
 
-            // Branches
             bulbPositions.forEach((pos, i) => {
                 if(continuity[i]) {
                     const t = (time * 0.005) % 1;
-                    // Down branch
                     if (t < 0.5) {
                         const prog = t * 2;
                         drawParticle(pos.x, 150 + prog * 35);
@@ -340,16 +322,13 @@
         }
 
         function getSeriesPoint(t) {
-            // Simplified path tracing for particles
-            // 0 to 0.7: along bulbs
-            // 0.7 to 1.0: return path
             if (t < 0.7) {
                 const seg = t / 0.7;
                 return { x: 60 + seg * 690, y: 200 };
             } else {
                 const seg = (t - 0.7) / 0.3;
-                if (seg < 0.3) return { x: 750, y: 200 + seg * 500 }; // Down (capped)
-                return { x: 750 - (seg * 710), y: 350 }; // Back
+                if (seg < 0.3) return { x: 750, y: 200 + (seg / 0.3) * 150 };
+                return { x: 750 - ((seg - 0.3) / 0.7) * 710, y: 350 };
             }
         }
 
